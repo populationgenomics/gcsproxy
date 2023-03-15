@@ -2,6 +2,23 @@
 
 Reverse proxy for Google Cloud Storage.
 
+## Deployment
+
+```sh
+ gcloud run deploy \
+      --project=leo-dev-290304
+      --region=australia-southeast1 \
+      --service-account=cpg-harmony@leo-dev-290304.iam.gserviceaccount.com \
+      --allow-unauthenticated \
+      --ingress=internal-and-cloud-load-balancing \
+      --source=. \
+      cpg-harmony
+```
+
+Use `--args` to customize the `--bucket` parameter of `gcsproxy`.
+
+The root is mapped to `index.html`.
+
 ## Description
 
 This is a reverse proxy for Google Cloud Storage for performing limited disclosure (IP address restriction etc...). Gets the URL of the GCS object through its internal API. Therefore, it is possible to make GCS objects private and deliver limited content.

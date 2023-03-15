@@ -16,8 +16,9 @@ import (
 )
 
 var (
-	bind        = flag.String("b", "127.0.0.1:8080", "Bind address")
-	verbose     = flag.Bool("v", false, "Show access log")
+	bind        = flag.String("b", "0.0.0.0:8080", "Bind address")
+	bucket      = flag.String("bucket", "cpg-harmony", "GCS bucket name")
+	verbose     = flag.Bool("v", true, "Show access log")
 	credentials = flag.String("c", "", "The path to the keyfile. If not present, client will use your default application credentials.")
 )
 
@@ -89,6 +90,7 @@ func wrapper(fn func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		}
 		if *verbose {
 			log.Printf("[%s] %.3f %d %s %s",
+                                *bucket,
 				addr,
 				time.Now().Sub(proc).Seconds(),
 				writer.status,
@@ -107,7 +109,12 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 func proxy(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	gzipAcceptable := clientAcceptsGzip(r)
-	obj := client.Bucket(params["bucket"]).Object(params["object"]).ReadCompressed(gzipAcceptable)
+        path := params["object"]
+        if path == "" {
+            path = "index.html"
+        }
+        log.Printf("Reading gs://%s/%s", *bucket, path)
+	obj := client.Bucket(*bucket).Object(path).ReadCompressed(gzipAcceptable)
 	attr, err := obj.Attrs(ctx)
 	if err != nil {
 		handleError(w, err)
@@ -158,7 +165,7 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/_health", wrapper(HealthCheckHandler)).Methods("GET", "HEAD")
-	r.HandleFunc("/{bucket:[0-9a-zA-Z-_.]+}/{object:.*}", wrapper(proxy)).Methods("GET", "HEAD")
+	r.HandleFunc("/{object:.*}", wrapper(proxy)).Methods("GET", "HEAD")
 
 	log.Printf("[service] listening on %s", *bind)
 	if err := http.ListenAndServe(*bind, r); err != nil {
